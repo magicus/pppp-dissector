@@ -78,6 +78,13 @@ function pppp_protocol.dissector(buffer, pinfo, tree)
   local opcode_number = buffer(1, 1):uint()
   local opcode_name = get_opcode_name(opcode_number)
   if opcode_name ~= "Unknown" then
+    if opcode_number == 0xD0 then
+      -- for MSG_DRW, add channel and index
+      local channel = buffer(6, 1):uint()
+      local index = buffer(6, 2):uint()
+
+        opcode_name = opcode_name .. ":" .. channel .. ";" .. index
+    end
     short_info = " (" .. opcode_name .. ")"
     pinfo.cols.info:append(short_info)
   end
