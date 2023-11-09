@@ -27,10 +27,12 @@ function add_field(proto_field_constructor, name, desc, ...)
 end
 
 add_field(ProtoField.uint8, "magic", "Magic Byte", base.HEX)
-add_field(ProtoField.bytes, "data_dec", "Decrypted data")
-add_field(ProtoField.uint8, "opcode", "messageOpcode", base.HEX)
+add_field(ProtoField.bytes, "decrypted", "Decrypted Packet")
+add_field(ProtoField.uint8, "opcode", "Opcode", base.HEX)
 add_field(ProtoField.uint8, "length", "Payload Length")
 add_field(ProtoField.bytes, "payload", "Payload")
+add_field(ProtoField.bytes, "uid_raw", "Raw UID")
+add_field(ProtoField.string, "uid", "UID")
 
 pppp_protocol.fields = fields
 
@@ -49,17 +51,17 @@ function pppp_protocol.dissector(buffer, pinfo, tree)
   end
 
   pinfo.cols.protocol = pppp_protocol.name
-  local subtree = tree:add(pppp_protocol, buffer(), "PPPP Protocol Data")
+  local subtree = tree:add(pppp_protocol, buffer(), "PPPP Packet")
 
   if (is_encrypted) then
-    local decrypted_buffer = pppp_decrypt(buffer:bytes()):tvb("Decrypted PPPP Data")
+    local decrypted_buffer = pppp_decrypt(buffer:bytes()):tvb("Decrypted PPPP Packet")
 
-    subtree:add(fields.data_dec, decrypted_buffer())
+    subtree:add(fields.decrypted, decrypted_buffer())
 
-    local decrypted_subtree = tree:add(decrypted_buffer(), "Decrypted PPPP Data")
-    pppp_dissect(decrypted_buffer, pinfo, decrypted_subtree)
+    local decrypted_subtree = tree:add(decrypted_buffer(), "Decrypted PPPP Packet")
+    pppp_dissect(decrypted_buffer, pinfo, decrypted_subtree, tree)
   else
-    pppp_dissect(buffer, pinfo, subtree)
+    pppp_dissect(buffer, pinfo, subtree, tree)
   end
 
   return buffer:len()
@@ -67,15 +69,26 @@ end
 
 pppp_protocol:register_heuristic("udp", pppp_protocol.dissector)
 
-function pppp_dissect(buffer, pinfo, subtree)
+function pppp_dissect(buffer, pinfo, subtree, roottree)
   subtree:add(fields.magic, buffer(0, 1))
 
   local opcode_number = buffer(1, 1):uint()
   local opcode_name = get_opcode_name(opcode_number)
   subtree:add(fields.opcode, buffer(1, 1)):append_text(" (" .. opcode_name .. ")")
+  if opcode_name ~= "Unknown" then
+    pinfo.cols.info:append(" (" .. opcode_name .. ")")
+  end
+  local payload_length = buffer(2, 2):uint()
   subtree:add(fields.length, buffer(2, 2))
-  subtree:add(fields.payload, buffer(4))
+  if payload_length > 0 then
+    subtree:add(fields.payload, buffer(4))
+    local payload_subtree = roottree:add(buffer(4), "PPPP Payload")
 
+    local opcode_dissector = opcode_dissectors[opcode_number]
+    if opcode_dissector then
+      opcode_dissector(buffer(4), pinfo, payload_subtree)
+    end
+  end
 end
 
 function get_opcode_name(opcode)
@@ -87,6 +100,19 @@ function get_opcode_name(opcode)
   return opcode_name
 end
 
+function dissect_opcode_uid(buffer, pinfo, subtree)
+  local prefix = buffer(0, 8):stringz()
+  local serial = buffer(8, 4):uint()
+  local check = buffer(12, 8):stringz()
+  local uid = prefix .. "-" .. serial .. "-" .. check
+  subtree:add(fields.uid, uid)
+  subtree:add(fields.uid_raw, buffer(0, 20))
+end
+
+opcode_dissectors = ({
+  [0x41] = dissect_opcode_uid, -- MSG_PUNCH_PKT
+  [0x42] = dissect_opcode_uid, -- MSG_P2P_RDY
+})
 
 -- from https://github.com/pmarrapese/iot/blob/master/p2p/dissector/pppp.fdesc
 opcode_names = {
@@ -158,8 +184,8 @@ opcode_names = {
   [0xF6] = "MSG_MGM_DUMP_LOGIN_DID_1",
   [0xF7] = "MSG_MGM_LOG_CONTROL",
   [0xF8] = "MSG_MGM_REMOTE_MANAGEMENT",
-  [0xF9] = "MSG_REPORT_SESSION_READY"
- }
+  [0xF9] = "MSG_REPORT_SESSION_READY",
+}
 
 -- decryption
 
@@ -200,7 +226,7 @@ keytable = {
   0x33, 0x6C, 0x56, 0x7E, 0xB4, 0xA0, 0xFD, 0x7A, 0x81, 0x53, 0x51, 0x86, 0x8D, 0x9F, 0x77, 0xFF,
   0x6A, 0x80, 0xDF, 0xE2, 0xBF, 0x10, 0xD7, 0x75, 0x64, 0x57, 0x76, 0xF3, 0x55, 0xCD, 0xD0, 0xC8,
   0x18, 0xE6, 0x36, 0x41, 0x62, 0xCF, 0x99, 0xF2, 0x32, 0x4C, 0x67, 0x60, 0x61, 0x92, 0xCA, 0xD3,
-  0xEA, 0x63, 0x7D, 0x16, 0xB6, 0x8E, 0xD4, 0x68, 0x35, 0xC3, 0x52, 0x9D, 0x46, 0x44, 0x1E, 0x17
+  0xEA, 0x63, 0x7D, 0x16, 0xB6, 0x8E, 0xD4, 0x68, 0x35, 0xC3, 0x52, 0x9D, 0x46, 0x44, 0x1E, 0x17,
 }
 
 -- debug helpers
