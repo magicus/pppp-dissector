@@ -39,6 +39,9 @@ add_field(ProtoField.uint8, "data_channel", "Data Channel ID")
 add_field(ProtoField.uint16, "data_index", "Data Message Index")
 add_field(ProtoField.bytes, "data", "Data")
 
+add_field(ProtoField.uint16, "ack_count", "Number of ACKs")
+add_field(ProtoField.uint16, "ack_index", "Data Message Index ACK")
+
 add_field(ProtoField.uint32, "cmd_flags", "Command Flags", base.HEX)
 add_field(ProtoField.uint32, "cmd_flags.reply", "Direction", base.HEX, { [0] = "Request", [0x305] = "Reply" }, 0x060a0000)
 add_field(ProtoField.uint32, "cmd_flags.admin", "Admin", base.HEX, { [0] = "False", [1] = "True" }, 0x00000100)
@@ -84,6 +87,11 @@ function pppp_protocol.dissector(buffer, pinfo, tree)
       local index = buffer(6, 2):uint()
 
         opcode_name = opcode_name .. ":" .. channel .. ";" .. index
+    elseif opcode_number == 0xD1 then
+      -- for MSG_DRW_ACK, add channel
+      local channel = buffer(6, 1):uint()
+
+        opcode_name = opcode_name .. ":" .. channel
     end
     short_info = " (" .. opcode_name .. ")"
     pinfo.cols.info:append(short_info)
@@ -135,6 +143,27 @@ function dissect_opcode_uid(buffer, pinfo, subtree, roottree)
   subtree:add(fields.uid_raw, buffer(0, 20))
 end
 
+function dissect_opcode_drw_ack(buffer, pinfo, subtree, roottree)
+  subtree:add(fields.data_magic, buffer(0, 1))
+  subtree:add(fields.data_channel, buffer(1, 1))
+  subtree:add(fields.ack_count, buffer(2, 2))
+
+  subtree:add(fields.data, buffer(4))
+
+  local ack_count = buffer(2, 2):uint()
+  local acks_subtree = subtree:add(buffer(4), "ACKed Packets")
+  buffer = buffer(4)
+  while buffer:len() > 0 do
+    local ack_index = buffer(0, 2):uint()
+    acks_subtree:add(fields.ack_index, buffer(0, 2))
+    if ack_count == 1 then
+      break
+    end
+    buffer = buffer(2)
+    ack_count = ack_count - 1
+  end
+end
+
 function dissect_opcode_drw(buffer, pinfo, subtree, roottree)
   subtree:add(fields.data_magic, buffer(0, 1))
   subtree:add(fields.data_channel, buffer(1, 1))
@@ -174,6 +203,7 @@ opcode_dissectors = ({
   [0x41] = dissect_opcode_uid, -- MSG_PUNCH_PKT
   [0x42] = dissect_opcode_uid, -- MSG_P2P_RDY
   [0xd0] = dissect_opcode_drw, -- MSG_DRW
+  [0xd1] = dissect_opcode_drw_ack, -- MSG_DRW_ACK
 })
 
 -- from https://github.com/pmarrapese/iot/blob/master/p2p/dissector/pppp.fdesc
