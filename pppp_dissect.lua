@@ -34,6 +34,18 @@ add_field(ProtoField.bytes, "payload", "Payload")
 add_field(ProtoField.bytes, "uid_raw", "Raw UID")
 add_field(ProtoField.string, "uid", "UID")
 
+add_field(ProtoField.uint8, "data_magic", "Data Magic Byte", base.HEX)
+add_field(ProtoField.uint8, "data_channel", "Data Channel ID")
+add_field(ProtoField.uint16, "data_index", "Data Message Index")
+add_field(ProtoField.bytes, "data", "Data")
+
+add_field(ProtoField.uint32, "cmd_flags", "Command Flags", base.HEX)
+add_field(ProtoField.uint32, "cmd_flags.reply", "Direction", base.HEX, { [0] = "Request", [0x305] = "Reply" }, 0x060a0000)
+add_field(ProtoField.uint32, "cmd_flags.admin", "Admin", base.HEX, { [0] = "False", [1] = "True" }, 0x00000100)
+add_field(ProtoField.uint32, "cmd_flags.unknown", "Unknown", base.HEX, { [0xa080] = "Expected" }, 0xf9f5feff)
+add_field(ProtoField.uint16, "cmd_length", "Command Length")
+add_field(ProtoField.string, "cmd", "Command")
+
 pppp_protocol.fields = fields
 
 function pppp_protocol.dissector(buffer, pinfo, tree)
@@ -51,18 +63,27 @@ function pppp_protocol.dissector(buffer, pinfo, tree)
   end
 
   pinfo.cols.protocol = pppp_protocol.name
-  local subtree = tree:add(pppp_protocol, buffer(), "PPPP Packet")
 
   if (is_encrypted) then
     local decrypted_buffer = pppp_decrypt(buffer:bytes()):tvb("Decrypted PPPP Packet")
 
+    local subtree = tree:add(pppp_protocol, buffer(), "PPPP Packet (encrypted)")
     subtree:add(fields.decrypted, decrypted_buffer())
 
-    local decrypted_subtree = tree:add(decrypted_buffer(), "Decrypted PPPP Packet")
-    pppp_dissect(decrypted_buffer, pinfo, decrypted_subtree, tree)
-  else
-    pppp_dissect(buffer, pinfo, subtree, tree)
+    -- Continue with the decrypted buffer
+    buffer = decrypted_buffer
   end
+
+  local short_info = ""
+  local opcode_number = buffer(1, 1):uint()
+  local opcode_name = get_opcode_name(opcode_number)
+  if opcode_name ~= "Unknown" then
+    short_info = " (" .. opcode_name .. ")"
+    pinfo.cols.info:append(short_info)
+  end
+
+  local subtree = tree:add(pppp_protocol, buffer(), "PPPP Packet" .. short_info)
+  pppp_dissect(buffer, pinfo, subtree, tree)
 
   return buffer:len()
 end
@@ -75,9 +96,7 @@ function pppp_dissect(buffer, pinfo, subtree, roottree)
   local opcode_number = buffer(1, 1):uint()
   local opcode_name = get_opcode_name(opcode_number)
   subtree:add(fields.opcode, buffer(1, 1)):append_text(" (" .. opcode_name .. ")")
-  if opcode_name ~= "Unknown" then
-    pinfo.cols.info:append(" (" .. opcode_name .. ")")
-  end
+
   local payload_length = buffer(2, 2):uint()
   subtree:add(fields.length, buffer(2, 2))
   if payload_length > 0 then
@@ -86,7 +105,7 @@ function pppp_dissect(buffer, pinfo, subtree, roottree)
 
     local opcode_dissector = opcode_dissectors[opcode_number]
     if opcode_dissector then
-      opcode_dissector(buffer(4), pinfo, payload_subtree)
+      opcode_dissector(buffer(4), pinfo, payload_subtree, roottree)
     end
   end
 end
@@ -100,18 +119,54 @@ function get_opcode_name(opcode)
   return opcode_name
 end
 
-function dissect_opcode_uid(buffer, pinfo, subtree)
+function dissect_opcode_uid(buffer, pinfo, subtree, roottree)
   local prefix = buffer(0, 8):stringz()
   local serial = buffer(8, 4):uint()
   local check = buffer(12, 8):stringz()
-  local uid = prefix .. "-" .. serial .. "-" .. check
+  local uid = prefix .. "-" .. string.format("%06s", serial) .. "-" .. check
   subtree:add(fields.uid, uid)
   subtree:add(fields.uid_raw, buffer(0, 20))
+end
+
+function dissect_opcode_drw(buffer, pinfo, subtree, roottree)
+  subtree:add(fields.data_magic, buffer(0, 1))
+  subtree:add(fields.data_channel, buffer(1, 1))
+  subtree:add(fields.data_index, buffer(2, 2))
+  local data_channel = buffer(1, 1):uint()
+  subtree:add(fields.data, buffer(4))
+  if data_channel == 0 then
+    dissect_opcode_command(buffer(4), pinfo, subtree, roottree)
+  end
+end
+
+function dissect_opcode_command(buffer, pinfo, subtree, roottree)
+  local commands_channel_subtree = roottree:add(buffer(), "PPPP Command Channel")
+
+  while buffer:len() > 0 do
+    local command_block_length = buffer(4, 4):le_uint()
+    local command_subtree = commands_channel_subtree:add(buffer(0, 8 + command_block_length), "Command Block")
+    -- header == 0x060a means "from IoT device to controller", or "result"
+    -- header == 0x0000 means "from controller to IoT device", or "command"
+    local flag_tree = command_subtree:add(fields.cmd_flags, buffer(0, 4))
+    flag_tree:add(fields["cmd_flags.reply"], buffer(0, 4))
+    flag_tree:add(fields["cmd_flags.admin"], buffer(0, 4))
+    flag_tree:add(fields["cmd_flags.unknown"], buffer(0, 4))
+
+    command_subtree:add_le(fields.cmd_length, buffer(4, 4))
+    command_subtree:add(fields.cmd, buffer(8, command_block_length))
+
+    if 8 + command_block_length >= buffer:len() then
+      break
+    end
+    buffer = buffer(8 + command_block_length)
+  end
+
 end
 
 opcode_dissectors = ({
   [0x41] = dissect_opcode_uid, -- MSG_PUNCH_PKT
   [0x42] = dissect_opcode_uid, -- MSG_P2P_RDY
+  [0xd0] = dissect_opcode_drw, -- MSG_DRW
 })
 
 -- from https://github.com/pmarrapese/iot/blob/master/p2p/dissector/pppp.fdesc
