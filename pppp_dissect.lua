@@ -8,7 +8,7 @@
 -- without the work of Paul Marrapese (https://github.com/pmarrapese/iot) and
 -- datenstau (https://github.com/datenstau/A9_PPPP).
 -- In learning to write Lua WireShark dissector, this post from Mika's tech blog
--- was incredible helpful:
+-- was incredibly helpful:
 -- https://mika-s.github.io/wireshark/lua/dissector/2017/11/04/creating-a-wireshark-dissector-in-lua-1.html
 
 pppp_protocol = Proto("PPPP", "PPPP Protocol")

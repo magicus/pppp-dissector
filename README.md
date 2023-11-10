@@ -9,8 +9,8 @@ without the work of Paul Marrapese (https://github.com/pmarrapese/iot) and
 datenstau (https://github.com/datenstau/A9_PPPP).
 
 In learning to write Lua WireShark dissector, [this post](
-https://mika-s.github.io/wireshark/lua/dissector/2017/11/04/creating-a-wireshark-dissector-in-lua-1.html) 
-from Mika's tech blog was very helpful.
+https://mika-s.github.io/wireshark/lua/dissector/2017/11/04/creating-a-wireshark-dissector-in-lua-1.html)
+from Mika's tech blog was incredibly helpful.
 
 In contrast to pmarrapese, this dissector also handles "encrypted" traffic
 (this is really more of an obfuscation than proper encryption). Nor does it
