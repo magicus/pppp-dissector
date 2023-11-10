@@ -35,12 +35,12 @@ add_field(ProtoField.bytes, "uid_raw", "Raw UID")
 add_field(ProtoField.string, "uid", "UID")
 
 add_field(ProtoField.uint8, "data_magic", "Data Magic Byte", base.HEX)
-add_field(ProtoField.uint8, "data_channel", "Data Channel ID")
-add_field(ProtoField.uint16, "data_index", "Data Message Index")
+add_field(ProtoField.uint8, "channel", "Data Channel ID")
+add_field(ProtoField.uint16, "index", "Data Message Index")
 add_field(ProtoField.bytes, "data", "Data")
 
 add_field(ProtoField.uint16, "ack_count", "Number of ACKs")
-add_field(ProtoField.uint16, "ack_index", "Data Message Index ACK")
+add_field(ProtoField.uint16, "index_ack", "Data Message Index ACK")
 
 add_field(ProtoField.uint32, "cmd_flags", "Command Flags", base.HEX)
 add_field(ProtoField.uint32, "cmd_flags.reply", "Direction", base.HEX, { [0] = "Request", [0x305] = "Reply" }, 0x060a0000)
@@ -77,27 +77,11 @@ function pppp_protocol.dissector(buffer, pinfo, tree)
     buffer = decrypted_buffer
   end
 
-  local short_info = ""
-  local opcode_number = buffer(1, 1):uint()
-  local opcode_name = get_opcode_name(opcode_number)
-  if opcode_name ~= "Unknown" then
-    if opcode_number == 0xD0 then
-      -- for MSG_DRW, add channel and index
-      local channel = buffer(6, 1):uint()
-      local index = buffer(6, 2):uint()
+  local extra_info = get_extra_info(buffer)
+  pinfo.cols.info:append(extra_info)
+  local subtree = tree:add(pppp_protocol, buffer(), "PPPP Packet" .. extra_info)
 
-        opcode_name = opcode_name .. ":" .. channel .. ";" .. index
-    elseif opcode_number == 0xD1 then
-      -- for MSG_DRW_ACK, add channel
-      local channel = buffer(6, 1):uint()
-
-        opcode_name = opcode_name .. ":" .. channel
-    end
-    short_info = " (" .. opcode_name .. ")"
-    pinfo.cols.info:append(short_info)
-  end
-
-  local subtree = tree:add(pppp_protocol, buffer(), "PPPP Packet" .. short_info)
+  -- Do the actual dissection
   pppp_dissect(buffer, pinfo, subtree, tree)
 
   return buffer:len()
@@ -108,8 +92,8 @@ pppp_protocol:register_heuristic("udp", pppp_protocol.dissector)
 function pppp_dissect(buffer, pinfo, subtree, roottree)
   subtree:add(fields.magic, buffer(0, 1))
 
-  local opcode_number = buffer(1, 1):uint()
-  local opcode_name = get_opcode_name(opcode_number)
+  local opcode = buffer(1, 1):uint()
+  local opcode_name = get_opcode_name(opcode)
   subtree:add(fields.opcode, buffer(1, 1)):append_text(" (" .. opcode_name .. ")")
 
   local payload_length = buffer(2, 2):uint()
@@ -118,21 +102,15 @@ function pppp_dissect(buffer, pinfo, subtree, roottree)
     subtree:add(fields.payload, buffer(4))
     local payload_subtree = roottree:add(buffer(4), "PPPP Payload")
 
-    local opcode_dissector = opcode_dissectors[opcode_number]
+    -- Dissect the payload, if we have a dissector for this opcode
+    local opcode_dissector = opcode_dissectors[opcode]
     if opcode_dissector then
       opcode_dissector(buffer(4), pinfo, payload_subtree, roottree)
     end
   end
 end
 
-function get_opcode_name(opcode)
-  opcode_name = opcode_names[opcode]
-  if opcode_name == nil then
-    return "Unknown"
-  end
-
-  return opcode_name
-end
+---- Opcode-specfic dissectors
 
 function dissect_opcode_uid(buffer, pinfo, subtree, roottree)
   local prefix = buffer(0, 8):stringz()
@@ -143,46 +121,23 @@ function dissect_opcode_uid(buffer, pinfo, subtree, roottree)
   subtree:add(fields.uid_raw, buffer(0, 20))
 end
 
-function dissect_opcode_drw_ack(buffer, pinfo, subtree, roottree)
-  subtree:add(fields.data_magic, buffer(0, 1))
-  subtree:add(fields.data_channel, buffer(1, 1))
-  subtree:add(fields.ack_count, buffer(2, 2))
-
-  subtree:add(fields.data, buffer(4))
-
-  local ack_count = buffer(2, 2):uint()
-  local acks_subtree = subtree:add(buffer(4), "ACKed Packets")
-  buffer = buffer(4)
-  while buffer:len() > 0 do
-    local ack_index = buffer(0, 2):uint()
-    acks_subtree:add(fields.ack_index, buffer(0, 2))
-    if ack_count == 1 then
-      break
-    end
-    buffer = buffer(2)
-    ack_count = ack_count - 1
-  end
-end
-
 function dissect_opcode_drw(buffer, pinfo, subtree, roottree)
   subtree:add(fields.data_magic, buffer(0, 1))
-  subtree:add(fields.data_channel, buffer(1, 1))
-  subtree:add(fields.data_index, buffer(2, 2))
+  subtree:add(fields.channel, buffer(1, 1))
+  subtree:add(fields.index, buffer(2, 2))
   local data_channel = buffer(1, 1):uint()
   subtree:add(fields.data, buffer(4))
   if data_channel == 0 then
-    dissect_opcode_command(buffer(4), pinfo, subtree, roottree)
+    dissect_opcode_drw_command(buffer(4), pinfo, subtree, roottree)
   end
 end
 
-function dissect_opcode_command(buffer, pinfo, subtree, roottree)
+function dissect_opcode_drw_command(buffer, pinfo, subtree, roottree)
   local commands_channel_subtree = roottree:add(buffer(), "PPPP Command Channel")
 
   while buffer:len() > 0 do
     local command_block_length = buffer(4, 4):le_uint()
     local command_subtree = commands_channel_subtree:add(buffer(0, 8 + command_block_length), "Command Block")
-    -- header == 0x060a means "from IoT device to controller", or "result"
-    -- header == 0x0000 means "from controller to IoT device", or "command"
     local flag_tree = command_subtree:add(fields.cmd_flags, buffer(0, 4))
     flag_tree:add(fields["cmd_flags.reply"], buffer(0, 4))
     flag_tree:add(fields["cmd_flags.admin"], buffer(0, 4))
@@ -196,15 +151,72 @@ function dissect_opcode_command(buffer, pinfo, subtree, roottree)
     end
     buffer = buffer(8 + command_block_length)
   end
+end
 
+function dissect_opcode_drw_ack(buffer, pinfo, subtree, roottree)
+  subtree:add(fields.data_magic, buffer(0, 1))
+  subtree:add(fields.channel, buffer(1, 1))
+  subtree:add(fields.ack_count, buffer(2, 2))
+
+  subtree:add(fields.data, buffer(4))
+
+  local ack_count = buffer(2, 2):uint()
+  local acks_subtree = subtree:add(buffer(4), "ACKed Packets")
+  buffer = buffer(4)
+  while buffer:len() > 0 do
+    local ack_index = buffer(0, 2):uint()
+    acks_subtree:add(fields.index_ack, buffer(0, 2))
+    if ack_count == 1 then
+      break
+    end
+    buffer = buffer(2)
+    ack_count = ack_count - 1
+  end
 end
 
 opcode_dissectors = ({
-  [0x41] = dissect_opcode_uid, -- MSG_PUNCH_PKT
-  [0x42] = dissect_opcode_uid, -- MSG_P2P_RDY
-  [0xd0] = dissect_opcode_drw, -- MSG_DRW
+  [0x41] = dissect_opcode_uid,     -- MSG_PUNCH_PKT
+  [0x42] = dissect_opcode_uid,     -- MSG_P2P_RDY
+  [0xd0] = dissect_opcode_drw,     -- MSG_DRW
   [0xd1] = dissect_opcode_drw_ack, -- MSG_DRW_ACK
 })
+
+---- Helper functions
+
+function get_extra_info(buffer)
+  local opcode = buffer(1, 1):uint()
+  local opcode_name = get_opcode_name(opcode)
+
+  if opcode_name == "Unknown" then
+    return ""
+  end
+
+  if opcode == 0xD0 then
+    -- for MSG_DRW, add channel and index
+    local channel = buffer(6, 1):uint()
+    local index = buffer(6, 2):uint()
+
+    extra_info = opcode_name .. ":" .. channel .. ";" .. index
+  elseif opcode == 0xD1 then
+    -- for MSG_DRW_ACK, add channel
+    local channel = buffer(6, 1):uint()
+
+    extra_info = opcode_name .. ":" .. channel
+  else
+    extra_info = opcode_name
+  end
+
+  return " (" .. extra_info .. ")"
+end
+
+function get_opcode_name(opcode)
+  opcode_name = opcode_names[opcode]
+  if opcode_name == nil then
+    return "Unknown"
+  end
+
+  return opcode_name
+end
 
 -- from https://github.com/pmarrapese/iot/blob/master/p2p/dissector/pppp.fdesc
 opcode_names = {
@@ -279,7 +291,7 @@ opcode_names = {
   [0xF9] = "MSG_REPORT_SESSION_READY",
 }
 
--- decryption
+---- "Decryption" functionality
 
 -- from https://github.com/datenstau/A9_PPPP/blob/master/crypt.js
 function pppp_decrypt(bytes)
@@ -321,7 +333,7 @@ keytable = {
   0xEA, 0x63, 0x7D, 0x16, 0xB6, 0x8E, 0xD4, 0x68, 0x35, 0xC3, 0x52, 0x9D, 0x46, 0x44, 0x1E, 0x17,
 }
 
--- debug helpers
+---- Debug helpers
 
 -- from https://stackoverflow.com/a/27028488
 function dump(o)
