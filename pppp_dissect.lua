@@ -191,6 +191,7 @@ function get_extra_info(buffer)
     return ""
   end
 
+  local extra_info
   if opcode == 0xD0 then
     -- for MSG_DRW, add channel and index
     local channel = buffer(5, 1):uint()
@@ -210,7 +211,7 @@ function get_extra_info(buffer)
 end
 
 function get_opcode_name(opcode)
-  opcode_name = opcode_names[opcode]
+  local opcode_name = opcode_names[opcode]
   if opcode_name == nil then
     return "Unknown"
   end
@@ -267,12 +268,13 @@ opcode_names = {
   [0x84] = "MSG_RLY_RDY",
   [0x85] = "MSG_RLY_TO_ACK",
   [0x87] = "MSG_RLY_SERVER_REQ",
-  [0x87] = "MSG_RLY_SERVER_REQ_ACK",
+  -- [0x87] = "MSG_RLY_SERVER_REQ_ACK", -- has the same value as MSG_RLY_SERVER_REQ
   [0x90] = "MSG_SDEV_RUN",
   [0x91] = "MSG_SDEV_LGN",
-  [0x91] = "MSG_SDEV_LGN_ACK",
+  -- [0x91] = "MSG_SDEV_LGN_ACK", -- has the same value as MSG_SDEV_LGN
   [0x92] = "MSG_SDEV_LGN_CRC",
-  [0x92] = "MSG_SDEV_LGN_ACK_CRC",
+  -- [0x92] = "MSG_SDEV_LGN_ACK_CRC", -- has the same value as MSG_SDEV_LGN_CRC
+  [0x93] = "MSG_SDEV_LGN_KEY",
   [0x94] = "MSG_SDEV_REPORT",
   [0xA0] = "MSG_CONNECT_REPORT",
   [0xA1] = "MSG_REPORT_REQ",
