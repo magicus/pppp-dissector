@@ -193,13 +193,13 @@ function get_extra_info(buffer)
 
   if opcode == 0xD0 then
     -- for MSG_DRW, add channel and index
-    local channel = buffer(6, 1):uint()
+    local channel = buffer(5, 1):uint()
     local index = buffer(6, 2):uint()
 
     extra_info = opcode_name .. ":" .. channel .. ";" .. index
   elseif opcode == 0xD1 then
     -- for MSG_DRW_ACK, add channel
-    local channel = buffer(6, 1):uint()
+    local channel = buffer(5, 1):uint()
 
     extra_info = opcode_name .. ":" .. channel
   else
