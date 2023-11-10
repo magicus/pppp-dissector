@@ -7,7 +7,7 @@
 -- I am standing on the shoulder of giants. This would not have been possible
 -- without the work of Paul Marrapese (https://github.com/pmarrapese/iot) and
 -- datenstau (https://github.com/datenstau/A9_PPPP).
--- In learning to write Lua WireShark dissector, this post from Mika's tech blog
+-- In learning to write a Lua WireShark dissector, this post from Mika's tech blog
 -- was incredibly helpful:
 -- https://mika-s.github.io/wireshark/lua/dissector/2017/11/04/creating-a-wireshark-dissector-in-lua-1.html
 
