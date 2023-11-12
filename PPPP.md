@@ -100,8 +100,8 @@ This is like a login. This is typically the first packet sent in a conversation 
 | `restrict` | integer | Unknown |
 | `mode` | integer | Unknown |
 | `type` | integer | Unknown |
-| `checkstr` | integer  | Unknown |
-| `cloud_key` | integer  | Unknown |
+| `checkstr` | string  | Unknown |
+| `cloud_key` | string  | Unknown |
 
 The value of these fields are unknown. The currently observed numerical values are:
 
