@@ -86,11 +86,30 @@ known prefixes and PSKs have been extracted from a decompiled Android app.
 | `JYDGZ` | "JYDGAOZHANP2P" |
 | `XGAK` | "SZGMBESTER" |
 
+## Device discovery
+
+To discover PPPP devices on the local network, the controller broadcasts a
+`MSG_LAN_SEARCH` packet on UDP port **32108**.
+
+The device, upon receiving this packet, will send `MSG_PUNCH_PKT`. The
+controller will reply back with another `MSG_PUNCH_PKT`. At this point, the
+communication channel is open, and the controller and device will communicate
+back to each other on the UDP port and IP address that the respective punch
+packet was sent from.
+
+The next step in the initialization process is that the device sends a
+`MSG_P2P_RDY` message. This contains the UID of the device. At this point, the
+controller can determine if this is the device it wants to communicate, and if
+it knows the security credentials. If so, it can start sending commands on
+channel 0.
+
 ## Channel 0 commands and responses
 
 On channel 0, the controller can send commands to the device, and the device
 can reply to those commands. The communication is done by exchanging JSON
-objects.
+objects. As shown by the dissect script, each packet on channel 0 can contain
+one or more command blocks. The typical use case is to have one command block
+per packet, though.
 
 All command requests and responses must have a minimal set of fields, but may
 also contain additional fields. These additional fields are documented below in
