@@ -30,6 +30,24 @@ Every prefix is associated with a specific manufacturer. A single manufacturer c
 
 For some devices, the protocol is "encrypted" using a trivial XOR scheme. This is based on a 256 byte long table, which is shared by all implementation of the PPPP protocol, and a seed, which is calculated from a manufacturer-specific pre-shared key (PSK).
 
+The following list of known prefixes and PSKs have been extracted from a decompiled Android app.
+
+| Prefixes | PSK |
+|---|---|
+| `AES`, `ASH`, `BRTC`, `BRTD`, `CTW`, `ESN`, `EST`, `GBE`, `HWAA`, `ICB`, `IKB`, `JWEV`, `KBC`, `LAM`, `MATE`, `MEYE`, `MIL`, `OBJ`, `OEMAAAA`, `OEMAAAB`, `OPCS`, `PPCN`, `PPCS`, `PROCAM`, `RTOS`, `SPCN`, `TSD`, `VSTB`, `VSTC`, `WXH`, `WXO`, `XHA`, `XLT`, `ZSKJ` | *no encryption used* |
+| `DGB`, `DGHA`, `DGHG`, `DGKA`, `DGKB`, `DGKC`, `DGOA`, `DGOB`, `DGOC`, `DGOD`, `DGOE`, `DGOF`, `DGOG`, `DGOH`, `DGOI`, `DGOJ`, `DGOK`, `NMSA`, `NMSB`, `NMSZ`, `PETA`, `PETAA` | "camera" |
+| `AAA`, `ABC`, `DDD`, `EEE`, `FFF`, `HBW`, `NNN`, `PIXA`, `PIXB`, `PIXC`, `PIXD`, `XIAODOU` | "SHIX" |
+| `ACCQ`, `ACCR`, `ACCS`, `BCCQ` | "@@@@...." |
+| `VMA`, `VMP`, `VMS`, `VMV` | "VMSV" |
+| `FYIOT`, `FYPPCS`, `FYRTOS` | "FERRY@88" |
+| `PPIL`, `PPLL`, `PPSL` | "mycamera" |
+| `LIUX`, `PIR`, `TUT` | "Deng123abc" |
+| `DUNIOTA`, `NANOIOT` | "Duncom" |
+| `AYS`, `XYX` | "JX20130716" |
+| `THPC` | "hyWHzyhtzH" |
+| `JYDGZ` | "JYDGAOZHANP2P" |
+| `XGAK` | "SZGMBESTER" |
+
 ## Channel 0 commands and responses
 
 On channel 0, the controller can send commands to the device, and the device
