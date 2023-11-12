@@ -8,6 +8,10 @@ disassembly of some of the libraries, and I will use it as the generic name for
 this family of protocols. Other namnes include "CS2 Network" and "Yunni
 iLnkP2P". A closely related protocol is "Kalay" from TroughTek (TUTK).
 
+The official app accompanying these devices typically uses a native library
+such as `libobject_jni.so` or `libvstc2_jni.so`, with bindings from Java in the
+package `object.p2pipcam.nativecaller` or `vstc2.nativecaller`.
+
 ### Caution -- security concerns
 
 These devices have a reputation for being insecure, and have been plagued by
@@ -197,3 +201,7 @@ corresponds to the value of `admin` being 1.
 * https://github.com/fbertone/lib32100/issues/7
 * https://github.com/datenstau/A9_PPPP
 * https://github.com/K-Francis-H/little-stars-hack
+* https://re-ws.pl/2018/05/security-analysis-of-spy-camera-sold-by-chinese-suppliers-iminicam-app/
+* https://ppppdecodestring.ericbetts.dev/
+* https://github.com/sol-vin/0x42424242.in/tree/master/_posts/vstarcam-journey
+* https://github.com/sol-vin/vstarcam-investigational-journey/tree/master
