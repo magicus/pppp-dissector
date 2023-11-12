@@ -4,6 +4,9 @@ WireShark dissector for the PPPP protocol
 WireShark dissector for the P2P protocol used by various IoT devices,
 typically cheap Chinese IP cameras.
 
+An attempt to document the protocol (in addition to what is programmatically
+"documented" in the dissector) can be found [here](PPPP.md).
+
 I am standing on the shoulder of giants. This would not have been possible
 without the work of Paul Marrapese (https://github.com/pmarrapese/iot) and
 datenstau (https://github.com/datenstau/A9_PPPP).
