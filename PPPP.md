@@ -30,7 +30,7 @@ Every prefix is associated with a specific manufacturer. A single manufacturer c
 
 For some devices, the protocol is "encrypted" using a trivial XOR scheme. This is based on a 256 byte long table, which is shared by all implementation of the PPPP protocol, and a seed, which is calculated from a manufacturer-specific pre-shared key (PSK).
 
-The following list of known prefixes and PSKs have been extracted from a decompiled Android app.
+When interacting with the larger P2P network and servers, the PSK is always "SSD@cs2-network.". When communicating locally with the device, a different PSK is used, that is determined by the prefix of the UID. The following list of known prefixes and PSKs have been extracted from a decompiled Android app.
 
 | Prefixes | PSK |
 |---|---|
@@ -120,3 +120,4 @@ In the underlying PPPP packet structure, the special "admin" flag (0x00000100 of
 
 https://hacked.camera/
 https://github.com/pmarrapese/iot/tree/master/p2p/dissector
+https://github.com/fbertone/lib32100/issues/7
