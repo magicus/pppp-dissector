@@ -8,6 +8,25 @@ disassembly of some of the libraries, and I will use it as the generic name for
 this family of protocols. Other namnes include "CS2 Network" and "Yunni
 iLnkP2P". A closely related protocol is "Kalay" from TroughTek (TUTK).
 
+### Caution -- security concerns
+
+These devices have a reputation for being insecure, and have been plagued by
+security holes in the past. (See https://hacked.camera/ for more information.)
+It is also highly likely that they will try to send data (such as the video
+stream) to untrusted 3rd parties on the internet, due to the nature of the P2P
+protocol, or that the network will try to use your device to proxy such private
+data of other users.
+
+If you own such a device and want to interoperate with it locally on your
+network, I **strongly** recommend that you block UDP port 32100 for outgoing
+packets in your firewall. The protocol mandates that connection to the P2P
+directory servers happen on UDP port 32100, so by blocking that port, you will
+ensure that your device is not registering with any outside party.
+
+As an alternative, or complement, you can assign a fixed IP address to the
+device, and block all outgoing traffic from that address. Note that this might
+affect some functionality, like mobile push notifications.
+
 ### Terminology
 
 In this document, I will use **device** for the IoT device (typically, a
@@ -154,6 +173,8 @@ corresponds to the value of `admin` being 1.
 
 ## Resources
 
-https://hacked.camera/
-https://github.com/pmarrapese/iot/tree/master/p2p/dissector
-https://github.com/fbertone/lib32100/issues/7
+* https://hacked.camera/
+* https://github.com/pmarrapese/iot/tree/master/p2p/dissector
+* https://github.com/fbertone/lib32100/issues/7
+* https://github.com/datenstau/A9_PPPP
+* https://github.com/K-Francis-H/little-stars-hack
