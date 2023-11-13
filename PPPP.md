@@ -203,6 +203,10 @@ The result code signals the success of the command. A value of **0** means
 **success**. A value of **-1** means **failure**. (It is possible that other
 failure codes exist.)
 
+### set_cypush (cmd 1)
+
+*Documentation not yet finished.*
+
 ### check_user (cmd 100)
 
 This is like a login. This is typically the first packet sent in a conversation
@@ -241,6 +245,66 @@ In the underlying PPPP packet structure, the special "admin" flag (0x00000100
 of the command block flag field) is set to 1 for this particular response (the
 only observed instance of this flag being non-zero). It is speculated that this
 corresponds to the value of `admin` being 1.
+
+### get_parms (cmd 101)
+
+*Documentation not yet finished.*
+
+### dev_control (cmd 102)
+
+*Documentation not yet finished.*
+
+### get_alarm (cmd 107)
+
+*Documentation not yet finished.*
+
+### set_alarm (cmd 108)
+
+*Documentation not yet finished.*
+
+### stream (cmd 111)
+
+*Documentation not yet finished.*
+
+### get_wifi (cmd 112)
+
+*Documentation not yet finished.*
+
+### scan_wifi (cmd 113)
+
+*Documentation not yet finished.*
+
+### set_wifi (cmd 114)
+
+*Documentation not yet finished.*
+
+### set_datetime (cmd 126)
+
+*Documentation not yet finished.*
+
+### ptz_control (cmd 128)
+
+*Documentation not yet finished.*
+
+### get_record_param (cmd 199)
+
+*Documentation not yet finished.*
+
+### talk_send (cmd 300)
+
+*Documentation not yet finished.*
+
+### set_whiteLight (cmd 304)
+
+*Documentation not yet finished.*
+
+### get_whiteLight (cmd 305)
+
+*Documentation not yet finished.*
+
+### get_cloudsupport (cmd 9000)
+
+*Documentation not yet finished.*
 
 ## Resources
 
