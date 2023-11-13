@@ -26,4 +26,16 @@ To use this dissector, put pppp_dissect.lua in your WireShark plugin folder.
 See https://www.wireshark.org/docs/wsug_html_chunked/ChPluginFolders.html if
 you need assistance in finding the folder.
 
+If your device uses "encrypted" traffic, the dissector needs to know the PSK
+(pre-shared key) used for encryption. By default, the dissector checks the
+three most commonly used PSK automatically, but if your device does not use any
+of these, you must manually enter the proper PSK. This needs to be set as the
+property `pppp.psk`. You can find this preference in the GUI by going to
+Wireshark Preferences, selecting Protocols, and then selecting PPPP.
+
+You can consult the [table of known PSKs](PPPP.md#pre-shared-key) to find the
+PSK for your device. If your prefix is not listed in that table, you will need
+to find the PSK some other way, typically be reverse-engineering an existing
+app.
+
 This code is licensed under the MIT license.
