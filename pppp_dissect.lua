@@ -26,18 +26,18 @@ function add_field(proto_field_constructor, name, desc, ...)
   end
 end
 
-add_field(ProtoField.uint8, "magic", "Magic Byte", base.HEX)
-add_field(ProtoField.bytes, "decrypted", "Decrypted Packet")
-add_field(ProtoField.uint8, "opcode", "Opcode", base.HEX)
-add_field(ProtoField.uint8, "length", "Payload Length")
-add_field(ProtoField.bytes, "payload", "Payload")
-add_field(ProtoField.bytes, "uid_raw", "Raw UID")
+add_field(ProtoField.uint8,  "magic", "Magic Byte", base.HEX)
+add_field(ProtoField.bytes,  "decrypted", "Decrypted Packet")
+add_field(ProtoField.uint8,  "opcode", "Opcode", base.HEX)
+add_field(ProtoField.uint8,  "len", "Payload Length")
+add_field(ProtoField.bytes,  "payload", "Payload")
+add_field(ProtoField.bytes,  "uid_raw", "Raw UID")
 add_field(ProtoField.string, "uid", "UID")
 
-add_field(ProtoField.uint8, "data_magic", "Data Magic Byte", base.HEX)
-add_field(ProtoField.uint8, "channel", "Data Channel ID")
+add_field(ProtoField.uint8,  "data_magic", "Data Magic Byte", base.HEX)
+add_field(ProtoField.uint8,  "channel", "Data Channel ID")
 add_field(ProtoField.uint16, "index", "Data Message Index")
-add_field(ProtoField.bytes, "data", "Data")
+add_field(ProtoField.bytes,  "data", "Data")
 
 add_field(ProtoField.uint16, "ack_count", "Number of ACKs")
 add_field(ProtoField.uint16, "index_ack", "Data Message Index ACK")
@@ -46,8 +46,17 @@ add_field(ProtoField.uint32, "cmd_flags", "Command Flags", base.HEX)
 add_field(ProtoField.uint32, "cmd_flags.reply", "Direction", base.HEX, { [0] = "Request", [0x305] = "Reply" }, 0x060a0000)
 add_field(ProtoField.uint32, "cmd_flags.admin", "Admin", base.HEX, { [0] = "False", [1] = "True" }, 0x00000100)
 add_field(ProtoField.uint32, "cmd_flags.unknown", "Unknown", base.HEX, { [0xa080] = "Expected" }, 0xf9f5feff)
-add_field(ProtoField.uint16, "cmd_length", "Command Length")
+add_field(ProtoField.uint16, "cmd_len", "Command Length")
 add_field(ProtoField.string, "cmd", "Command")
+
+add_field(ProtoField.uint32, "frame_magic", "Frame Magic Bytes", base.HEX)
+add_field(ProtoField.uint8,  "frame_codec", "Codec", base.HEX)
+add_field(ProtoField.uint8,  "frame_type", "Media Type", base.HEX)
+add_field(ProtoField.uint16, "frame_millis", "Milliseconds", base.HEX)
+add_field(ProtoField.absolute_time, "frame_timestamp", "Timestamp")
+add_field(ProtoField.uint32, "frame_index", "Index")
+add_field(ProtoField.uint32, "frame_len", "Frame Length")
+add_field(ProtoField.bytes,  "frame_unknown", "Unknown")
 
 pppp_protocol.fields = fields
 
@@ -97,7 +106,7 @@ function pppp_dissect(buffer, pinfo, subtree, roottree)
   subtree:add(fields.opcode, buffer(1, 1)):append_text(" (" .. opcode_name .. ")")
 
   local payload_length = buffer(2, 2):uint()
-  subtree:add(fields.length, buffer(2, 2))
+  subtree:add(fields.len, buffer(2, 2))
   if payload_length > 0 then
     subtree:add(fields.payload, buffer(4))
     local payload_subtree = roottree:add(buffer(4), "PPPP Payload")
@@ -129,6 +138,8 @@ function dissect_opcode_drw(buffer, pinfo, subtree, roottree)
   subtree:add(fields.data, buffer(4))
   if data_channel == 0 then
     dissect_opcode_drw_command(buffer(4), pinfo, subtree, roottree)
+  elseif buffer(4, 4):uint() == 0x55aa15a8 then
+    dissect_opcode_drw_frame(buffer(4), pinfo, subtree, roottree)
   end
 end
 
@@ -143,7 +154,7 @@ function dissect_opcode_drw_command(buffer, pinfo, subtree, roottree)
     flag_tree:add(fields["cmd_flags.admin"], buffer(0, 4))
     flag_tree:add(fields["cmd_flags.unknown"], buffer(0, 4))
 
-    command_subtree:add_le(fields.cmd_length, buffer(4, 4))
+    command_subtree:add_le(fields.cmd_len, buffer(4, 4))
     command_subtree:add(fields.cmd, buffer(8, command_block_length))
 
     if 8 + command_block_length >= buffer:len() then
@@ -151,6 +162,22 @@ function dissect_opcode_drw_command(buffer, pinfo, subtree, roottree)
     end
     buffer = buffer(8 + command_block_length)
   end
+end
+
+function dissect_opcode_drw_frame(buffer, pinfo, subtree, roottree)
+  local frame_subtree = roottree:add(buffer(), "PPPP Frame Header")
+
+  frame_subtree:add(fields.frame_magic, buffer(0, 4))
+  frame_subtree:add(fields.frame_codec, buffer(4, 1))
+  frame_subtree:add(fields.frame_type, buffer(5, 1))
+
+  frame_subtree:add_le(fields.frame_millis, buffer(6, 2))
+
+  frame_subtree:add_le(fields.frame_timestamp, buffer(8, 4))
+  frame_subtree:add_le(fields.frame_index, buffer(12, 4))
+  frame_subtree:add_le(fields.frame_len, buffer(16, 4))
+
+  frame_subtree:add(fields.frame_unknown, buffer(20, 12))
 end
 
 function dissect_opcode_drw_ack(buffer, pinfo, subtree, roottree)
