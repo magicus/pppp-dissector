@@ -76,9 +76,9 @@ known prefixes and PSKs have been extracted from a decompiled Android app.
 
 Prefixes | PSK
 ---|---
-`AES`, `ASH`, `BRTC`, `BRTD`, `CTW`, `ESN`, `EST`, `GBE`, `HWAA`, `ICB`, `IKB`, `JWEV`, `KBC`, `LAM`, `MATE`, `MEYE`, `MIL`, `OBJ`, `OEMAAAA`, `OEMAAAB`, `OPCS`, `PPCN`, `PPCS`, `PROCAM`, `RTOS`, `SPCN`, `TSD`, `VSTB`, `VSTC`, `WXH`, `WXO`, `XHA`, `XLT`, `ZSKJ` | *no encryption used*
+`AES`, `ASH`, `BRTC`, `BRTD`, `CTW`, `ESN`, `EST`, `GBE`, `HWAA`, `ICB`, `IKB`, `JWEV`, `KBC`, `LAM`, `MATE`, `MEYE`, `MIL`, `OBJ`, `OEMAAAA`, `OEMAAAB`, `OEMAAAH`, `OPCS`, `PPCN`, `PPCS`, `PROCAM`, `RTOS`, `SPCN`, `TSD`, `VSTB`, `VSTC`, `WXH`, `WXO`, `XHA`, `XLT`, `ZSKJ` | *no encryption used*
 `DGB`, `DGHA`, `DGHG`, `DGKA`, `DGKB`, `DGKC`, `DGOA`, `DGOB`, `DGOC`, `DGOD`, `DGOE`, `DGOF`, `DGOG`, `DGOH`, `DGOI`, `DGOJ`, `DGOK`, `NMSA`, `NMSB`, `NMSZ`, `PETA`, `PETAA` | "camera"
-`AAA`, `ABC`, `DDD`, `EEE`, `FFF`, `HBW`, `NNN`, `PIXA`, `PIXB`, `PIXC`, `PIXD`, `XIAODOU` | "SHIX"
+`AAA`, `ABC`, `ABCF`, `DDD`, `EEE`, `FFF`, `HBW`, `NNN`, `PIXA`, `PIXB`, `PIXC`, `PIXD`, `XIAODOU` | "SHIX"
 `ACCQ`, `ACCR`, `ACCS`, `BCCQ` | "@@@@...."
 `VMA`, `VMP`, `VMS`, `VMV` | "VMSV"
 `FYIOT`, `FYPPCS`, `FYRTOS` | "FERRY@88"
