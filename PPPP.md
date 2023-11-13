@@ -12,7 +12,7 @@ The official app accompanying these devices typically uses a native library
 such as `libobject_jni.so` or `libvstc2_jni.so`, with bindings from Java in the
 package `object.p2pipcam.nativecaller` or `vstc2.nativecaller`.
 
-### Caution -- security concerns
+### ⚠️ Caution -- security concerns
 
 These devices have a reputation for being insecure, and have been plagued by
 security holes in the past. (See https://hacked.camera/ for more information.)
@@ -106,7 +106,6 @@ The next step in the initialization process is that the device sends a
 controller can determine if this is the device it wants to communicate, and if
 it knows the security credentials. If so, it can start sending commands on
 channel 0.
-
 
 ## Video and audio streams
 
