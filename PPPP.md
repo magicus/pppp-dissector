@@ -107,6 +107,55 @@ controller can determine if this is the device it wants to communicate, and if
 it knows the security credentials. If so, it can start sending commands on
 channel 0.
 
+
+## Video and audio streams
+
+The device can send and/or receive data streams using the `MSG_DRW` (data
+read/write) packets. The following channels are used:
+
+**channel** | **content**
+---|---
+1 | video from the device
+2 | audio from the device
+3 | audio to the device ("talk")
+
+Data are sent in frames. If the payload of the `MSG_DRW` packet would exceed
+1024 bytes, it will be split into multiple, consecutive packets. Only the first
+packet in that sequence will have the header.
+
+Each frame begins with a 32 byte long header. (Note that this leaves room only
+for 992 bytes of data in the frame, if it should fit in a single packet.)
+
+The structure of the frame header is only partially understood. Note that the
+purpose of many fields are currently unknown, and that the `codec`/`type` and
+`millis` fields are just guesswork. The purpose of the magic bytes is
+presumably to help the receiver re-synchronize at the start of a new frame, if
+some intermediate packets are lost. The only fields that have always seen being
+respected are `magic`, `codec`/`type` and `len`. All other fields can, in
+different circumstances, be set to e.g. all zeros or all `0xaa`, or some other
+values.
+
+**name** | **size (in bytes)** | **description**
+---|---|---
+`magic` | 4 | Magic bytes indicating start of a new header (always **0x55aa15a8**)
+`codec` | 1 | A byte representing the A/V codec used
+`type` | 1 | A byte representing the media type of the frame (**0** = video, **1** = audio)
+`millis` | 2 | Presumably a millisecond offset from the timestamp
+`timestamp` | 4 | The time in seconds since EPOCH, in little-endian order
+`index` | 4 |  The 0-based index of this frame, in little-endian order
+`len` | 4 |  The length of the frame data, in little-endian order
+`unknown` | 12 | Unknown
+
+The observed values for the codec (if that is indeed what the field represents)
+are listed below. The 0xaa value is just assumed, but the 0x08 value is
+confirmed.
+
+**value** | **codec**
+---|---
+0x03 | MJPEG, with one JPEG image per frame
+0x08 | Audio, IMA ADPCM DVI/4 (4-bits, 11.025 kHz, 1 channel)
+0xaa | Audio, IMA ADPCM DVI/4 (4-bits, 11.025 kHz, 1 channel)
+
 ## Channel 0 commands and responses
 
 On channel 0, the controller can send commands to the device, and the device
