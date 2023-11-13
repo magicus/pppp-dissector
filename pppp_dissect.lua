@@ -13,6 +13,8 @@
 
 pppp_protocol = Proto("PPPP", "PPPP Protocol")
 
+pppp_protocol.prefs.psk = Pref.string("Pre-shared Key", "", "The PSK used for PPPP encryption")
+
 local fields = {}
 
 -- inspired by https://github.com/Lekensteyn/kdnet
@@ -60,6 +62,8 @@ add_field(ProtoField.bytes, "frame_unknown", "Unknown")
 
 pppp_protocol.fields = fields
 
+local psk_magic_byte = 0x00 -- Only valid if PSK is set
+
 function pppp_protocol.dissector(buffer, pinfo, tree)
   local bufferlen = buffer:len()
   if bufferlen == 0 then
@@ -68,31 +72,73 @@ function pppp_protocol.dissector(buffer, pinfo, tree)
 
   -- Check our magic byte
   local magic = buffer(0, 1):uint()
-  local is_encrypted = false
+
+  if magic == 0xf1 then
+    -- Unencrypted data, just do the actual dissection
+    pppp_dissect(buffer, pinfo, tree, tree)
+    return bufferlen
+  end
+
+  -- It is either an encrypted PPPP packet, or not a PPPP packet at all
+  local psk = pppp_protocol.prefs.psk
+
+  if psk ~= "" then
+    -- We have a PSK set, so use it
+    if magic == psk_magic_byte then
+      buffer = pppp_handle_decryption(psk, buffer, tree)
+      pppp_dissect(buffer, pinfo, tree, tree)
+      return bufferlen
+    else
+      -- The packet does not match our expected magic byte; not a PPPP packet
+      return 0
+    end
+  end
+
+  -- No PSK set, so check if using one of the three most common PSKs
   if magic == 0x2c then
-    is_encrypted = true
-  elseif magic ~= 0x1f then
-    return 0
+    buffer = pppp_handle_decryption("camera", buffer, tree)
+    pppp_dissect(buffer, pinfo, tree, tree)
+    return bufferlen
+  elseif magic == 0x9f then
+    buffer = pppp_handle_decryption("SHIX", buffer, tree)
+    pppp_dissect(buffer, pinfo, tree, tree)
+    return bufferlen
+  elseif magic == 0xb1 then
+    buffer = pppp_handle_decryption("SSD@cs2-network.", buffer, tree)
+    pppp_dissect(buffer, pinfo, tree, tree)
+    return bufferlen
   end
 
-  if (is_encrypted) then
-    local psk = "camera"
-    local decrypted_buffer = pppp_decrypt(psk, buffer:bytes()):tvb("Decrypted PPPP Packet")
-
-    local subtree = tree:add(pppp_protocol, buffer(), "PPPP Packet (encrypted)")
-    subtree:add(fields.decrypted, decrypted_buffer())
-
-    -- Continue with the decrypted buffer
-    buffer = decrypted_buffer
-  end
-
-  -- Do the actual dissection
-  pppp_dissect(buffer, pinfo, tree, tree)
-
-  return bufferlen
+  -- No, this is not a PPPP packet
+  return 0
 end
 
 pppp_protocol:register_heuristic("udp", pppp_protocol.dissector)
+
+function pppp_protocol.init()
+  pppp_update_magic_byte()
+end
+
+function pppp_protocol.prefs_changed()
+  pppp_update_magic_byte()
+end
+
+function pppp_update_magic_byte()
+  local psk = pppp_protocol.prefs.psk
+
+  if psk ~= "" then
+    -- We have a PSK set, so calculate and cache the magic byte value for it
+    local clear_magic_byte = ByteArray.new("f1")
+    psk_magic_byte = pppp_encrypt(psk, clear_magic_byte):get_index(0)
+  end
+end
+
+function pppp_handle_decryption(psk, buffer, tree)
+  local decrypted_buffer = pppp_decrypt(psk, buffer:bytes()):tvb("Decrypted PPPP Packet")
+  local subtree = tree:add(pppp_protocol, buffer(), "PPPP Packet (encrypted)")
+  subtree:add(fields.decrypted, decrypted_buffer())
+  return decrypted_buffer
+end
 
 function pppp_dissect(buffer, pinfo, tree, roottree)
   local extra_info = get_extra_info(buffer)
@@ -159,7 +205,7 @@ function dissect_opcode_drw_command(buffer, pinfo, subtree, roottree)
     command_subtree:add_le(fields.cmd_len, buffer(4, 4))
     command_subtree:add(fields.cmd, buffer(8, command_block_length))
 
-    if 8 + command_block_length >= buffer:len() then
+    if buffer:len() <= 8 + command_block_length then
       break
     end
     buffer = buffer(8 + command_block_length)
@@ -196,6 +242,10 @@ function dissect_opcode_drw_ack(buffer, pinfo, subtree, roottree)
     local ack_index = buffer(0, 2):uint()
     acks_subtree:add(fields.index_ack, buffer(0, 2))
     if ack_count == 1 then
+      break
+    end
+    if buffer:len() <= 2 then
+      print("Warning: PPPP MSG_DRW_ACK packet is too short")
       break
     end
     buffer = buffer(2)
