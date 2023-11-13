@@ -74,21 +74,21 @@ When interacting with the larger P2P network and servers, the PSK is always
 is used, that is determined by the prefix of the UID. The following list of
 known prefixes and PSKs have been extracted from a decompiled Android app.
 
-| Prefixes | PSK |
-|---|---|
-| `AES`, `ASH`, `BRTC`, `BRTD`, `CTW`, `ESN`, `EST`, `GBE`, `HWAA`, `ICB`, `IKB`, `JWEV`, `KBC`, `LAM`, `MATE`, `MEYE`, `MIL`, `OBJ`, `OEMAAAA`, `OEMAAAB`, `OPCS`, `PPCN`, `PPCS`, `PROCAM`, `RTOS`, `SPCN`, `TSD`, `VSTB`, `VSTC`, `WXH`, `WXO`, `XHA`, `XLT`, `ZSKJ` | *no encryption used* |
-| `DGB`, `DGHA`, `DGHG`, `DGKA`, `DGKB`, `DGKC`, `DGOA`, `DGOB`, `DGOC`, `DGOD`, `DGOE`, `DGOF`, `DGOG`, `DGOH`, `DGOI`, `DGOJ`, `DGOK`, `NMSA`, `NMSB`, `NMSZ`, `PETA`, `PETAA` | "camera" |
-| `AAA`, `ABC`, `DDD`, `EEE`, `FFF`, `HBW`, `NNN`, `PIXA`, `PIXB`, `PIXC`, `PIXD`, `XIAODOU` | "SHIX" |
-| `ACCQ`, `ACCR`, `ACCS`, `BCCQ` | "@@@@...." |
-| `VMA`, `VMP`, `VMS`, `VMV` | "VMSV" |
-| `FYIOT`, `FYPPCS`, `FYRTOS` | "FERRY@88" |
-| `PPIL`, `PPLL`, `PPSL` | "mycamera" |
-| `LIUX`, `PIR`, `TUT` | "Deng123abc" |
-| `DUNIOTA`, `NANOIOT` | "Duncom" |
-| `AYS`, `XYX` | "JX20130716" |
-| `THPC` | "hyWHzyhtzH" |
-| `JYDGZ` | "JYDGAOZHANP2P" |
-| `XGAK` | "SZGMBESTER" |
+Prefixes | PSK
+---|---
+`AES`, `ASH`, `BRTC`, `BRTD`, `CTW`, `ESN`, `EST`, `GBE`, `HWAA`, `ICB`, `IKB`, `JWEV`, `KBC`, `LAM`, `MATE`, `MEYE`, `MIL`, `OBJ`, `OEMAAAA`, `OEMAAAB`, `OPCS`, `PPCN`, `PPCS`, `PROCAM`, `RTOS`, `SPCN`, `TSD`, `VSTB`, `VSTC`, `WXH`, `WXO`, `XHA`, `XLT`, `ZSKJ` | *no encryption used*
+`DGB`, `DGHA`, `DGHG`, `DGKA`, `DGKB`, `DGKC`, `DGOA`, `DGOB`, `DGOC`, `DGOD`, `DGOE`, `DGOF`, `DGOG`, `DGOH`, `DGOI`, `DGOJ`, `DGOK`, `NMSA`, `NMSB`, `NMSZ`, `PETA`, `PETAA` | "camera"
+`AAA`, `ABC`, `DDD`, `EEE`, `FFF`, `HBW`, `NNN`, `PIXA`, `PIXB`, `PIXC`, `PIXD`, `XIAODOU` | "SHIX"
+`ACCQ`, `ACCR`, `ACCS`, `BCCQ` | "@@@@...."
+`VMA`, `VMP`, `VMS`, `VMV` | "VMSV"
+`FYIOT`, `FYPPCS`, `FYRTOS` | "FERRY@88"
+`PPIL`, `PPLL`, `PPSL` | "mycamera"
+`LIUX`, `PIR`, `TUT` | "Deng123abc"
+`DUNIOTA`, `NANOIOT` | "Duncom"
+`AYS`, `XYX` | "JX20130716"
+`THPC` | "hyWHzyhtzH"
+`JYDGZ` | "JYDGAOZHANP2P"
+`XGAK` | "SZGMBESTER"
 
 ## Device discovery
 
@@ -123,12 +123,12 @@ the per-command sections.
 
 All commands must include the following fields in the JSON object:
 
-| **key** | **type**  | **description**|
-|---|---|----|
-| `cmd` | integer | The command number (see the table below) |
-| `pro` | string  | The string representation of the command number |
-| `user` | string  | The user name for authentication |
-| `pwd` | string  | The password for the user, in clear text |
+**key** | **type**  | **description**
+---|---|----
+`cmd` | integer | The command number (see the table below)
+`pro` | string  | The string representation of the command number
+`user` | string  | The user name for authentication
+`pwd` | string  | The password for the user, in clear text
 
 For most devices, there is no sofisticated user handling, and the `user` name
 is just the fixed value of `admin`.
@@ -142,10 +142,10 @@ still both needed.
 All responses sent by the device must include the following fields in the JSON
 object:
 
-| **key** | **type**  | **description**|
-|---|---|----|
-| `cmd` | integer | The command number |
-| `result` | integer  | A result code |
+ **key** | **type**  | **description**
+---|---|----
+`cmd` | integer | The command number
+`result` | integer  | A result code
 
 The command number should be the same as in the command request. (Disturbingly,
 some exceptions to this has been observed in the wild, where the device replies
@@ -166,24 +166,24 @@ between a controller and a device.
 
 **Additional response fields:**
 
-| **key** | **type**  | **description**|
-|---|---|----|
-| `admin` | integer | Unknown |
-| `restrict` | integer | Unknown |
-| `mode` | integer | Unknown |
-| `type` | integer | Unknown |
-| `checkstr` | string  | Unknown |
-| `cloud_key` | string  | Unknown |
+**key** | **type**  | **description**
+---|---|----
+`admin` | integer | Unknown
+`restrict` | integer | Unknown
+`mode` | integer | Unknown
+`type` | integer | Unknown
+`checkstr` | string  | Unknown
+`cloud_key` | string  | Unknown
 
 The value of these fields are unknown. The currently observed numerical values
 are:
 
-| **key** | **observed values** |
-|---|---|
-| `admin` | Always 1 |
-| `restrict` | Always 0 |
-| `mode` | Always 110 |
-| `type` | Always 600 |
+**key** | **observed values**
+---|---
+`admin` | Always 1
+`restrict` | Always 0
+`mode` | Always 110
+`type` | Always 600
 
 The `checkstr` and  `cloud_key` fields are presumably used in validating the
 device on the P2P networks. The checkstr has been observed to be "SHIX", and
