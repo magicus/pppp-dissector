@@ -26,18 +26,18 @@ function add_field(proto_field_constructor, name, desc, ...)
   end
 end
 
-add_field(ProtoField.uint8,  "magic", "Magic Byte", base.HEX)
-add_field(ProtoField.bytes,  "decrypted", "Decrypted Packet")
-add_field(ProtoField.uint8,  "opcode", "Opcode", base.HEX)
-add_field(ProtoField.uint8,  "len", "Payload Length")
-add_field(ProtoField.bytes,  "payload", "Payload")
-add_field(ProtoField.bytes,  "uid_raw", "Raw UID")
+add_field(ProtoField.uint8, "magic", "Magic Byte", base.HEX)
+add_field(ProtoField.bytes, "decrypted", "Decrypted Packet")
+add_field(ProtoField.uint8, "opcode", "Opcode", base.HEX)
+add_field(ProtoField.uint8, "len", "Payload Length")
+add_field(ProtoField.bytes, "payload", "Payload")
+add_field(ProtoField.bytes, "uid_raw", "Raw UID")
 add_field(ProtoField.string, "uid", "UID")
 
-add_field(ProtoField.uint8,  "data_magic", "Data Magic Byte", base.HEX)
-add_field(ProtoField.uint8,  "channel", "Data Channel ID")
+add_field(ProtoField.uint8, "data_magic", "Data Magic Byte", base.HEX)
+add_field(ProtoField.uint8, "channel", "Data Channel ID")
 add_field(ProtoField.uint16, "index", "Data Message Index")
-add_field(ProtoField.bytes,  "data", "Data")
+add_field(ProtoField.bytes, "data", "Data")
 
 add_field(ProtoField.uint16, "ack_count", "Number of ACKs")
 add_field(ProtoField.uint16, "index_ack", "Data Message Index ACK")
@@ -50,18 +50,19 @@ add_field(ProtoField.uint16, "cmd_len", "Command Length")
 add_field(ProtoField.string, "cmd", "Command")
 
 add_field(ProtoField.uint32, "frame_magic", "Frame Magic Bytes", base.HEX)
-add_field(ProtoField.uint8,  "frame_codec", "Codec", base.HEX)
-add_field(ProtoField.uint8,  "frame_type", "Media Type", base.HEX)
+add_field(ProtoField.uint8, "frame_codec", "Codec", base.HEX)
+add_field(ProtoField.uint8, "frame_type", "Media Type", base.HEX)
 add_field(ProtoField.uint16, "frame_millis", "Milliseconds", base.HEX)
 add_field(ProtoField.absolute_time, "frame_timestamp", "Timestamp")
 add_field(ProtoField.uint32, "frame_index", "Index")
 add_field(ProtoField.uint32, "frame_len", "Frame Length")
-add_field(ProtoField.bytes,  "frame_unknown", "Unknown")
+add_field(ProtoField.bytes, "frame_unknown", "Unknown")
 
 pppp_protocol.fields = fields
 
 function pppp_protocol.dissector(buffer, pinfo, tree)
-  if buffer:len() == 0 then
+  local bufferlen = buffer:len()
+  if bufferlen == 0 then
     return 0
   end
 
@@ -74,10 +75,9 @@ function pppp_protocol.dissector(buffer, pinfo, tree)
     return 0
   end
 
-  pinfo.cols.protocol = pppp_protocol.name
-
   if (is_encrypted) then
-    local decrypted_buffer = pppp_decrypt(buffer:bytes()):tvb("Decrypted PPPP Packet")
+    local psk = "camera"
+    local decrypted_buffer = pppp_decrypt(psk, buffer:bytes()):tvb("Decrypted PPPP Packet")
 
     local subtree = tree:add(pppp_protocol, buffer(), "PPPP Packet (encrypted)")
     subtree:add(fields.decrypted, decrypted_buffer())
@@ -86,19 +86,21 @@ function pppp_protocol.dissector(buffer, pinfo, tree)
     buffer = decrypted_buffer
   end
 
-  local extra_info = get_extra_info(buffer)
-  pinfo.cols.info:append(extra_info)
-  local subtree = tree:add(pppp_protocol, buffer(), "PPPP Packet" .. extra_info)
-
   -- Do the actual dissection
-  pppp_dissect(buffer, pinfo, subtree, tree)
+  pppp_dissect(buffer, pinfo, tree, tree)
 
-  return buffer:len()
+  return bufferlen
 end
 
 pppp_protocol:register_heuristic("udp", pppp_protocol.dissector)
 
-function pppp_dissect(buffer, pinfo, subtree, roottree)
+function pppp_dissect(buffer, pinfo, tree, roottree)
+  local extra_info = get_extra_info(buffer)
+  pinfo.cols.info:append(extra_info)
+  local subtree = tree:add(pppp_protocol, buffer(), "PPPP Packet" .. extra_info)
+
+  pinfo.cols.protocol = pppp_protocol.name
+
   subtree:add(fields.magic, buffer(0, 1))
 
   local opcode = buffer(1, 1):uint()
@@ -322,28 +324,71 @@ opcode_names = {
 
 ---- "Decryption" functionality
 
--- from https://github.com/datenstau/A9_PPPP/blob/master/crypt.js
-function pppp_decrypt(bytes)
-  local new_bytes = ByteArray.new()
-  new_bytes:set_size(bytes:len())
+-- Inspired from https://github.com/datenstau/A9_PPPP/blob/master/crypt.js
+-- and https://github.com/fbertone/lib32100/issues/7
 
-  local byte = 0
-  for position = 0, bytes:len() - 1 do
-    local dec_key_index = bit32.band(byte, 3)
-    local index = bit32.band(dec_key[dec_key_index + 1] + byte, 255)
+function pppp_create_psk_hash(psk)
+  local psk_hash = { 0x00, 0x00, 0x00, 0x00 }
 
-    byte = bytes:get_index(position)
-    local new_byte = bit32.bxor(byte, keytable[index + 1])
+  for i = 0, psk:len() - 1 do
+    local psk_byte = psk:sub(i + 1, i + 1):byte()
 
-    new_bytes:set_index(position, new_byte)
+    psk_hash[1] = bit32.band(255, psk_hash[1] + psk_byte)
+    psk_hash[2] = bit32.band(255, psk_hash[2] - psk_byte)
+    psk_hash[3] = bit32.band(255, psk_hash[3] + math.floor(psk_byte / 3))
+    psk_hash[4] = bit32.band(255, bit32.bxor(psk_hash[4], psk_byte))
   end
 
-  return new_bytes
+  return psk_hash
 end
 
-dec_key = { 0x69, 0x97, 0xcc, 0x19 }
+function pppp_lookup(psk_hash, byte)
+  local psk_hash_index = bit32.band(byte, 3)
+  local index = bit32.band(psk_hash[psk_hash_index + 1] + byte, 255)
 
-keytable = {
+  return shuffle_table[index + 1]
+end
+
+function pppp_decrypt(psk, encrypted)
+  local clear = ByteArray.new()
+  clear:set_size(encrypted:len())
+
+  local psk_hash = pppp_create_psk_hash(psk)
+  local prev_enc_byte = 0
+  for position = 0, encrypted:len() - 1 do
+    local key_byte = pppp_lookup(psk_hash, prev_enc_byte)
+
+    local old_byte = encrypted:get_index(position)
+    local new_byte = bit32.bxor(old_byte, key_byte)
+    clear:set_index(position, new_byte)
+
+    prev_enc_byte = old_byte
+  end
+
+  return clear
+end
+
+function pppp_encrypt(psk, clear)
+  local encrypted = ByteArray.new()
+  encrypted:set_size(clear:len())
+
+  local psk_hash = pppp_create_psk_hash(psk)
+  local prev_enc_byte = 0
+
+  for position = 0, clear:len() - 1 do
+    local key_byte = pppp_lookup(psk_hash, prev_enc_byte)
+
+    local old_byte = clear:get_index(position)
+    local new_byte = bit32.bxor(old_byte, key_byte)
+    encrypted:set_index(position, new_byte)
+
+    prev_enc_byte = new_byte
+  end
+
+  return encrypted
+end
+
+shuffle_table = {
   0x7C, 0x9C, 0xE8, 0x4A, 0x13, 0xDE, 0xDC, 0xB2, 0x2F, 0x21, 0x23, 0xE4, 0x30, 0x7B, 0x3D, 0x8C,
   0xBC, 0x0B, 0x27, 0x0C, 0x3C, 0xF7, 0x9A, 0xE7, 0x08, 0x71, 0x96, 0x00, 0x97, 0x85, 0xEF, 0xC1,
   0x1F, 0xC4, 0xDB, 0xA1, 0xC2, 0xEB, 0xD9, 0x01, 0xFA, 0xBA, 0x3B, 0x05, 0xB8, 0x15, 0x87, 0x83,
