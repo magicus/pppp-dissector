@@ -89,6 +89,7 @@ Prefixes | PSK
 `THPC` | "hyWHzyhtzH"
 `JYDGZ` | "JYDGAOZHANP2P"
 `XGAK` | "SZGMBESTER"
+`VE` | "vstarcam2018"
 
 ## Device discovery
 
